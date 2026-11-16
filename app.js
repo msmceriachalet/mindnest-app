@@ -65,7 +65,7 @@ async function siram() {
       const item = q[0];
       const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(item) });
       const j = await r.json();
-      if (!j.ok && j.error !== 'Nota tidak dijumpai') throw new Error(j.error);
+      if (!j.ok && !/tidak dijumpai|tidak sah|Teks kosong/.test(j.error || '')) throw new Error(j.error); // ralat kekal: buang dari barisan
       q.shift(); store.set('q', q);
     }
     $('sync').textContent = '';
@@ -297,7 +297,8 @@ function lukisSekarang() {
     return;
   }
   const x = s[0];
-  $('sek-label').textContent = jam() < 12 ? 'Pagi: buat ini dulu, otak masih segar' : 'Sekarang, buat ini sahaja';
+  const h = jam();
+  $('sek-label').textContent = h >= 5 && h < 12 ? 'Pagi: buat ini dulu, otak masih segar' : (waktuMalam() ? 'Esok pagi, mula dengan ini' : 'Sekarang, buat ini sahaja');
   isi.innerHTML = (x.lewat ? '<span class="lewat">Lewat</span>' : '') +
     '<p class="besar">' + esc(x.teks) + '</p>' + (x.konteks ? '<p class="konteks">' + esc(x.konteks) + '</p>' : '') +
     '<div class="aksi"><button type="button" class="siap" id="b-siap">Siap</button>' +
