@@ -293,26 +293,28 @@ function lukisPeta() {
   const pos = AREAS.map((a, i) => { const ang = -Math.PI / 2 + i * (2 * Math.PI / AREAS.length); return { a, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang), ang }; });
 
   let garis = '', html = '';
-  pos.forEach(p => {
-    const on = cabang === p.a;
-    garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p.x + '" y2="' + p.y + '" stroke="' + (on ? 'var(--ungu)' : 'var(--garis)') + '" stroke-width="' + (on ? 3 : 2) + '" stroke-linecap="round"/>';
-    html += '<button type="button" class="node' + (on ? ' buka' : (cabang ? ' senyap' : '')) + '" style="left:' + p.x + 'px;top:' + p.y + 'px" data-a="' + esc(p.a) + '" aria-expanded="' + on + '">' + esc(p.a) + '<span class="n">' + kira(p.a) + '</span></button>';
-  });
-
-  if (cabang) {
-    const p = pos.find(q => q.a === cabang);
-    const proj = D.projects.filter(x => x.area === cabang && x.status !== 'Siap').sort((a, b) => (a.status === 'Aktif' ? -1 : 0) - (b.status === 'Aktif' ? -1 : 0)).slice(0, 3);
-    const daun = proj.length ? proj.map(x => x.nama) : D.notes.filter(n => aktif(n) && n.area === cabang).slice(0, 3).map(n => n.teks);
-    const r2 = W * 0.2;
-    daun.forEach((t, i) => {
-      const ang = p.ang + (i - (daun.length - 1) / 2) * 0.75;
-      let x = p.x + r2 * Math.cos(ang), y = p.y + r2 * Math.sin(ang);
-      x = Math.max(W * 0.2, Math.min(W * 0.8, x)); y = Math.max(20, Math.min(H - 20, y));
-      garis += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + x + '" y2="' + y + '" stroke="var(--ungu)" stroke-width="1.5"/>';
-      html += '<div class="daun" style="left:' + x + 'px;top:' + y + 'px">' + esc(t.length > 40 ? t.slice(0, 38) + '…' : t) + '</div>';
+  if (!cabang) {
+    pos.forEach(p => {
+      garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p.x + '" y2="' + p.y + '" stroke="var(--garis)" stroke-width="2" stroke-linecap="round"/>';
+      html += '<button type="button" class="node" style="left:' + p.x + 'px;top:' + p.y + 'px" data-a="' + esc(p.a) + '" aria-expanded="false">' + esc(p.a) + '<span class="n">' + kira(p.a) + '</span></button>';
     });
+    html += '<div class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px"><img src="img/glyph.png" alt="">Tuan</div>';
+  } else {
+    // Zum masuk cabang: cabang jadi pusat, daun (projek/fikiran) mengelilinginya
+    const proj = D.projects.filter(x => x.area === cabang && x.status !== 'Siap').sort((a, b) => (a.status === 'Aktif' ? -1 : 0) - (b.status === 'Aktif' ? -1 : 0)).slice(0, 4);
+    const nota = D.notes.filter(n => aktif(n) && n.area === cabang).slice(0, 4 - proj.length);
+    const daun = proj.map(x => ({ t: x.nama, k: x.status })).concat(nota.map(n => ({ t: n.teks, k: 'Fikiran' })));
+    const n = daun.length, R2 = W * 0.34;
+    daun.forEach((d, i) => {
+      const ang = -Math.PI / 2 + (n === 1 ? 0 : i * (2 * Math.PI / n)) + (n === 2 ? Math.PI / 2 : 0);
+      const x = Math.max(W * 0.24, Math.min(W * 0.76, cx + R2 * Math.cos(ang))), y = cy + R2 * Math.sin(ang);
+      garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="var(--ungu)" stroke-width="2" stroke-linecap="round"/>';
+      html += '<div class="daun" style="left:' + x + 'px;top:' + y + 'px">' + esc(d.t.length > 44 ? d.t.slice(0, 42) + '…' : d.t) + '<small style="display:block;color:var(--redup);font-size:11px;margin-top:2px">' + esc(d.k) + '</small></div>';
+    });
+    if (!n) html += '<div class="daun" style="left:' + cx + 'px;top:' + (cy + W * 0.3) + 'px">Cabang ini masih kosong</div>';
+    html += '<button type="button" class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px" data-a="' + esc(cabang) + '" aria-expanded="true">' + esc(cabang) + '<span class="n" style="color:#fff;opacity:.8">' + kira(cabang) + '</span></button>';
+    html += '<button type="button" class="node" style="left:16%;top:6%" data-a="' + esc(cabang) + '">← Tuan</button>';
   }
-  html += '<div class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px"><img src="img/glyph.png" alt="">Tuan</div>';
   el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + garis + '</svg>' + html;
   el.querySelectorAll('button.node').forEach(b => b.addEventListener('click', () => {
     cabang = cabang === b.dataset.a ? null : b.dataset.a; lukisPeta();
@@ -321,7 +323,7 @@ function lukisPeta() {
       nesty('Cabang <b>' + esc(cabang) + '</b>: ' + pp + ' projek aktif, ' + nn + ' fikiran terbuka.', 'fikir', 3500);
     } else nestyDiam();
   }));
-  $('peta-sub').textContent = cabang ? 'Cabang ' + cabang + ' terbuka. Ketik lagi untuk tutup.' : 'Ketik satu cabang. Yang lain senyap.';
+  $('peta-sub').textContent = cabang ? 'Dalam cabang ' + cabang + '. Ketik pusat atau ← Tuan untuk keluar.' : 'Ketik satu cabang untuk masuk.';
   lukisKadPeta();
 }
 
