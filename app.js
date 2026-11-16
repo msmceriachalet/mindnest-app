@@ -129,6 +129,7 @@ document.querySelectorAll('nav button').forEach(b => b.addEventListener('click',
 
 function lukis() {
   document.body.classList.toggle('malam', waktuMalam());
+  const tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.content = waktuMalam() ? '#1C1A16' : '#5B1BC4';
   if (skrin === 'lepas') lukisLepas();
   if (skrin === 'peta') lukisPeta();
   if (skrin === 'sekarang') lukisSekarang();
@@ -170,7 +171,7 @@ function lepaskan(bila) {
   store.set('data', D);
   hantar({ action: 'addNote', teks, bila, area: areaPilih, masa }).then(muat);
   $('teks').value = ''; $('lepas-langkah2').hidden = true; $('area-chips').hidden = true;
-  toast(bila === 'Satu hari nanti' ? 'Disimpan untuk satu hari nanti. Kepala boleh lupakan dulu.' : 'Dilepaskan ke ' + bila.toLowerCase() + '. Kepala boleh rehat.');
+  toast(bila === 'Satu hari nanti' ? 'Nesty simpan untuk satu hari nanti. Kepala boleh lupakan dulu.' : 'Nesty simpan untuk ' + bila.toLowerCase() + '. Kepala boleh rehat.');
 }
 
 /* ---------- MALAM ---------- */
@@ -209,7 +210,7 @@ function lukisPeta() {
   let garis = '', html = '';
   pos.forEach(p => {
     const on = cabang === p.a;
-    garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p.x + '" y2="' + p.y + '" stroke="' + (on ? 'var(--lumut)' : 'var(--garis)') + '" stroke-width="' + (on ? 3 : 2) + '" stroke-linecap="round"/>';
+    garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p.x + '" y2="' + p.y + '" stroke="' + (on ? 'var(--ungu)' : 'var(--garis)') + '" stroke-width="' + (on ? 3 : 2) + '" stroke-linecap="round"/>';
     html += '<button type="button" class="node' + (on ? ' buka' : (cabang ? ' senyap' : '')) + '" style="left:' + p.x + 'px;top:' + p.y + 'px" data-a="' + esc(p.a) + '" aria-expanded="' + on + '">' + esc(p.a) + '<span class="n">' + kira(p.a) + '</span></button>';
   });
 
@@ -222,11 +223,11 @@ function lukisPeta() {
       const ang = p.ang + (i - (daun.length - 1) / 2) * 0.75;
       let x = p.x + r2 * Math.cos(ang), y = p.y + r2 * Math.sin(ang);
       x = Math.max(W * 0.2, Math.min(W * 0.8, x)); y = Math.max(20, Math.min(H - 20, y));
-      garis += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + x + '" y2="' + y + '" stroke="var(--lumut)" stroke-width="1.5"/>';
+      garis += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + x + '" y2="' + y + '" stroke="var(--ungu)" stroke-width="1.5"/>';
       html += '<div class="daun" style="left:' + x + 'px;top:' + y + 'px">' + esc(t.length > 40 ? t.slice(0, 38) + '…' : t) + '</div>';
     });
   }
-  html += '<div class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px">Tuan</div>';
+  html += '<div class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px"><img src="img/glyph.png" alt="">Tuan</div>';
   el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + garis + '</svg>' + html;
   el.querySelectorAll('button.node').forEach(b => b.addEventListener('click', () => { cabang = cabang === b.dataset.a ? null : b.dataset.a; lukisPeta(); }));
   $('peta-sub').textContent = cabang ? 'Cabang ' + cabang + ' terbuka. Ketik lagi untuk tutup.' : 'Ketik satu cabang. Yang lain senyap.';
@@ -293,7 +294,7 @@ function lukisSekarang() {
   const isi = $('sek-isi');
   if (!s.length) {
     $('sek-label').textContent = 'Sekarang';
-    isi.innerHTML = '<p class="besar">Tiada apa yang mendesak.</p><p class="konteks">Kepala boleh rehat, atau lepaskan apa yang terlintas.</p>';
+    isi.innerHTML = '<img class="maskot" src="img/maskot.png" alt="Nesty"><p class="besar" style="text-align:center">Tiada apa yang mendesak.</p><p class="konteks" style="text-align:center">Nesty jaga yang lain. Kepala boleh rehat, atau lepaskan apa yang terlintas.</p>';
     return;
   }
   const x = s[0];
@@ -323,7 +324,7 @@ function lukisSekarang() {
 
 function rehat(x) {
   const p = $('panel'), l = $('lapis');
-  p.innerHTML = '<h2 style="margin:0;font-size:22px">Satu langkah bergerak.</h2><p class="sub" style="margin:0">' + esc(x.teks) + '</p>' +
+  p.innerHTML = '<img class="maskot kecil" src="img/maskot.png" alt="Nesty"><h2 style="margin:0;font-size:22px;text-align:center">Satu langkah bergerak.</h2><p class="sub" style="margin:0">' + esc(x.teks) + '</p>' +
     '<div class="row" style="margin-top:6px"><button type="button" class="btn utama" id="r-mula">Rehat 5 minit</button><button type="button" class="btn" id="r-terus">Teruskan</button></div>';
   l.style.display = 'flex';
   $('r-terus').addEventListener('click', () => { l.style.display = 'none'; lukisSekarang(); });
