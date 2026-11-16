@@ -1,5 +1,5 @@
 /* MindNest service worker: simpan kulit app supaya boleh dibuka tanpa internet */
-const CACHE = 'mindnest-v5';
+const CACHE = 'mindnest-v6';
 const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'img/maskot.png', 'img/glyph.png', 'img/nesty.png'];
 
 self.addEventListener('install', e => {

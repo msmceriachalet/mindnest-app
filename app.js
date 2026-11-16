@@ -204,7 +204,7 @@ document.querySelectorAll('nav button').forEach(b => b.addEventListener('click',
 
 function lukis() {
   document.body.classList.toggle('malam', waktuMalam());
-  const tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.content = waktuMalam() ? '#1C1A16' : '#5B1BC4';
+  const tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.content = waktuMalam() ? '#17121F' : '#5B1BC4';
   if (skrin !== 'sekarang' && $('lapis').style.display !== 'flex') $('nesty').classList.remove('di-dalam');
   if (skrin === 'lepas') lukisLepas();
   if (skrin === 'peta') lukisPeta();

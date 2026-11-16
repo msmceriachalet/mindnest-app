@@ -28,8 +28,9 @@
     --ungu-muda: #EADFFC;
   }
   body.malam {
-    --kabus: #1C1A16; --dakwat: #EDE6D6; --redup: #B9AE98; --garis: #3A352C;
-    --putih: #24211B; --ungu: #E0B85A; --ungu-muda: #4A4234;
+    /* Malam Ungu: ungu gelap redup, kontras rendah, tiada putih terang */
+    --kabus: #17121F; --dakwat: #ECE5F5; --redup: #A99CBD; --garis: #352B45;
+    --putih: #211A2C; --ungu: #B99AF0; --ungu-muda: #3A2D52;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
@@ -85,7 +86,7 @@
 
   /* Sekarang */
   #s-sekarang { margin: 0 -22px; padding: 0 22px 160px; background: linear-gradient(170deg, #7A2BE0 0%, var(--ungu-dalam) 100%); color: #F7F2FF; }
-  body.malam #s-sekarang { background: #24211B; color: var(--dakwat); }
+  body.malam #s-sekarang { background: linear-gradient(170deg, #2A1F3D 0%, #1C1429 100%); color: var(--dakwat); }
   #s-sekarang .kecil { font-size: 15px; color: var(--ungu-muda); }
   body.malam #s-sekarang .kecil { color: var(--redup); }
   .lewat { align-self: flex-start; margin-top: 14px; background: #FBE5E2; color: var(--bata); font-weight: 800; font-size: 13px; border-radius: 999px; padding: 5px 12px; display: inline-flex; gap: 6px; align-items: center; }
@@ -120,15 +121,15 @@
   .jenama .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(180deg, var(--ungu-terang), var(--ungu-dalam)); display: grid; place-items: center; }
   .jenama .logo img { width: 22px; height: auto; }
   .jenama b { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -.01em; }
-  body.malam .jenama .logo { background: #3A3328; }
+  body.malam .jenama .logo { background: linear-gradient(180deg, #6B3FB0, #3A1F70); }
   .maskot { display: block; width: 150px; height: auto; margin: 8px auto 4px; animation: apung 3.6s ease-in-out infinite; }
   .maskot.besar { width: 220px; margin-top: 40px; }
   .maskot.kecil { width: 110px; animation: none; }
   @keyframes apung { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-  body.malam .maskot { filter: brightness(.72) saturate(.55); animation: none; }
+  body.malam .maskot { filter: brightness(.82) saturate(.8); animation: none; }
   .node.pusat { background: linear-gradient(180deg, var(--ungu-terang), var(--ungu-dalam)); color: #fff; display: grid; place-items: center; gap: 2px; }
   .node.pusat img { width: 30px; height: auto; }
-  body.malam .node.pusat { background: #3A3328; }
+  body.malam .node.pusat { background: linear-gradient(180deg, #6B3FB0, #3A1F70); }
 
   /* Nesty: PA yang sentiasa ada */
   .nesty { position: fixed; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 7; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
@@ -154,9 +155,9 @@
   .nesty.raikan .nesty-btn img { animation: n-raikan 1s ease-out 1; }
   .nesty.risau .nesty-btn img { animation: n-risau .5s ease-in-out 3; }
   .nesty.fikir .nesty-btn img { animation: n-fikir 1.6s ease-in-out infinite; }
-  .nesty.tidur .nesty-btn img { animation: n-nafas 5s ease-in-out infinite; filter: brightness(.7) saturate(.5); }
+  .nesty.tidur .nesty-btn img { animation: n-nafas 5s ease-in-out infinite; }
   .nesty.tidur .nesty-btn::after { content: "z"; position: absolute; right: 2px; top: -6px; font-weight: 800; color: var(--redup); animation: n-z 2.6s ease-in-out infinite; }
-  body.malam .nesty-btn img { filter: brightness(.72) saturate(.55); }
+  body.malam .nesty-btn img { filter: brightness(.85) saturate(.85); }
   body.malam .buih { box-shadow: none; }
   @keyframes n-apung { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
   @keyframes n-dengar { 0%,100% { transform: rotate(-7deg) translateY(-2px); } 50% { transform: rotate(-3deg) translateY(-4px); } }
@@ -249,6 +250,6 @@
 <div class="toast" id="toast" role="status"></div>
 <div class="lapis" id="lapis"><div class="panel" id="panel"></div></div>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
