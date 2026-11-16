@@ -307,7 +307,7 @@ function lukisPeta() {
     const n = daun.length, R2 = W * 0.34;
     daun.forEach((d, i) => {
       const ang = -Math.PI / 2 + (n === 1 ? 0 : i * (2 * Math.PI / n)) + (n === 2 ? Math.PI / 2 : 0);
-      const x = Math.max(W * 0.24, Math.min(W * 0.76, cx + R2 * Math.cos(ang))), y = cy + R2 * Math.sin(ang);
+      const x = Math.max(W * 0.21, Math.min(W * 0.79, cx + W * 0.38 * Math.cos(ang))), y = cy + W * 0.4 * Math.sin(ang);
       garis += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="var(--ungu)" stroke-width="2" stroke-linecap="round"/>';
       html += '<div class="daun" style="left:' + x + 'px;top:' + y + 'px">' + esc(d.t.length > 44 ? d.t.slice(0, 42) + '…' : d.t) + '<small style="display:block;color:var(--redup);font-size:11px;margin-top:2px">' + esc(d.k) + '</small></div>';
     });
