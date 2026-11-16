@@ -34,10 +34,57 @@ function jam() { return new Date().getHours(); }
 function waktuMalam() { const h = jam(); return h >= 21 || h < 5; }
 function masaKini() { return hariIni() + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'); }
 
-function toast(m, ms) {
-  const t = $('toast'); t.textContent = m; t.style.display = 'block';
-  clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = 'none'), ms || 2600);
+/* ---------- NESTY: PA yang sentiasa ada ----------
+   mood: senyum | dengar | gembira | raikan | risau | fikir | tidur
+   Nesty bercakap bila sesuatu berlaku: buka app, tukar skrin, simpan, siap, data berubah, internet putus/sambung. */
+const NESTY_MOOD = ['senyum', 'dengar', 'gembira', 'raikan', 'risau', 'fikir', 'tidur'];
+let nestyTerakhir = { teks: '', masa: 0 };
+function nesty(teks, mood, ms) {
+  const el = $('nesty'); if (!el || el.hidden) return;
+  mood = mood || (waktuMalam() ? 'tidur' : 'senyum');
+  NESTY_MOOD.forEach(m => el.classList.remove(m));
+  void el.offsetWidth; // mula semula animasi
+  el.classList.add(mood);
+  if (navigator.vibrate && (mood === 'raikan')) navigator.vibrate(30);
+  const b = $('nesty-buih');
+  if (teks) {
+    nestyTerakhir = { teks, masa: Date.now() };
+    b.innerHTML = teks; b.classList.add('on');
+    clearTimeout(nesty._t);
+    nesty._t = setTimeout(() => b.classList.remove('on'), ms || Math.max(3200, teks.length * 55));
+  }
+  clearTimeout(nesty._m);
+  if (mood !== 'dengar' && mood !== 'fikir') nesty._m = setTimeout(() => { NESTY_MOOD.forEach(m => el.classList.remove(m)); el.classList.add(waktuMalam() ? 'tidur' : 'senyum'); }, 2400);
 }
+function nestyDiam() { clearTimeout(nesty._m); const el = $('nesty'); NESTY_MOOD.forEach(m => el.classList.remove(m)); el.classList.add(waktuMalam() ? 'tidur' : 'senyum'); }
+function toast(m, ms) { nesty(esc(m), null, ms); }
+
+function ringkasanNesty() {
+  const s = senaraiSekarang();
+  const lewat = s.filter(x => x.lewat).length;
+  const baru = D.notes.filter(n => n.status === 'Baru').length;
+  const tanpaCabang = D.notes.filter(n => aktif(n) && !n.area).length;
+  const bahagian = [];
+  bahagian.push(s.length ? '<b>' + s.length + '</b> perkara untuk hari ini' : 'Tiada yang mendesak hari ini');
+  if (lewat) bahagian.push('<b>' + lewat + '</b> dah lewat');
+  if (baru) bahagian.push(baru + ' fikiran baru menunggu Claude susun');
+  if (tanpaCabang) bahagian.push(tanpaCabang + ' belum ada cabang');
+  return bahagian.join(', ') + '.';
+}
+function sapaan() {
+  const h = jam();
+  if (h >= 5 && h < 12) return 'Selamat pagi, Tuan.';
+  if (h >= 12 && h < 15) return 'Selamat tengah hari, Tuan.';
+  if (h >= 15 && h < 19) return 'Selamat petang, Tuan.';
+  return 'Selamat malam, Tuan.';
+}
+const KATA_SKRIN = {
+  lepas: () => 'Campak apa saja. Saya simpan, Claude susun.',
+  malam: () => 'Dah malam. Tulis apa perlu esok, lepas tu kita rehat.',
+  peta: () => { const t = D.notes.filter(n => aktif(n) && !n.area).length; return t ? t + ' fikiran belum ada cabang. Tolong saya letakkan?' : 'Ketik satu cabang, saya buka.'; },
+  sekarang: () => { const s = senaraiSekarang(); if (!s.length) return 'Kosong! Tuan boleh rehat.'; return s[0].lewat ? 'Yang ini dah lewat. Satu langkah kecil pun cukup.' : 'Satu je dulu. Yang lain saya sorokkan.'; }
+};
+let skrinDisapa = {};
 
 /* ---------- rangkaian + barisan offline ---------- */
 async function muat() {
@@ -46,9 +93,23 @@ async function muat() {
     const r = await fetch(API + '?k=' + encodeURIComponent(KUNCI), { cache: 'no-store' });
     const j = await r.json();
     if (!j.ok) { $('sync').textContent = j.error === 'Kunci tidak sah' ? 'Kunci tidak sah' : 'Ralat data'; return; }
-    D = j.data; store.set('data', D); $('sync').textContent = '';
+    const lama = D; D = j.data; store.set('data', D); $('sync').textContent = '';
+    beritaPerubahan(lama, D);
     lukis();
   } catch (e) { $('sync').textContent = 'Luar talian'; }
+}
+
+function beritaPerubahan(lama, baru) {
+  if (!lama || !lama.notes) return;
+  const t = hariIni();
+  if (baru.fokus && baru.fokus.tarikh === t && (!lama.fokus || lama.fokus.tarikh !== t)) {
+    nesty('Fokus pagi dari Claude dah sampai: <b>' + baru.fokus.items.length + '</b> perkara. Saya tunjuk satu demi satu di Sekarang.', 'gembira', 6000); return;
+  }
+  const disusun = baru.notes.filter(n => n.status === 'Disusun').length - lama.notes.filter(n => n.status === 'Disusun').length;
+  if (disusun > 0) { nesty('Claude baru susun <b>' + disusun + '</b> fikiran Tuan.', 'gembira'); return; }
+  const lamaP = {}; (lama.projects || []).forEach(p => (lamaP[p.id] = p));
+  const tukar = baru.projects.filter(p => lamaP[p.id] && (lamaP[p.id].status !== p.status || lamaP[p.id].langkah !== p.langkah));
+  if (tukar.length) nesty('Projek <b>' + esc(tukar[0].nama) + '</b> ada perubahan' + (tukar.length > 1 ? ' (dan ' + (tukar.length - 1) + ' lagi)' : '') + '.', 'fikir', 4500);
 }
 
 function hantar(body) {
@@ -57,10 +118,14 @@ function hantar(body) {
 }
 let menyiram = false;
 async function siram() {
-  if (menyiram || !navigator.onLine) { $('sync').textContent = navigator.onLine ? '' : 'Luar talian · disimpan dalam phone'; return; }
+  if (menyiram || !navigator.onLine) {
+    if (!navigator.onLine) { $('sync').textContent = 'Luar talian · disimpan dalam phone'; if (store.get('q', []).length) nesty('Tiada internet. Saya simpan dalam phone dulu, nanti saya hantar.', 'risau'); }
+    return;
+  }
   menyiram = true;
   try {
     let q = store.get('q', []);
+    const adaTertunggak = q.length > 1 && siram._gagal;
     while (q.length) {
       const item = q[0];
       const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(item) });
@@ -69,11 +134,16 @@ async function siram() {
       q.shift(); store.set('q', q);
     }
     $('sync').textContent = '';
+    if (adaTertunggak) nesty('Internet dah ada. Semua yang tertunggak saya dah hantar ke Sheet.', 'gembira');
+    siram._gagal = false;
   } catch (e) {
     $('sync').textContent = 'Belum dihantar · cuba lagi nanti';
+    if (!siram._gagal) nesty('Belum dapat hantar ke Sheet. Saya cuba lagi sendiri nanti.', 'risau');
+    siram._gagal = true;
   } finally { menyiram = false; }
 }
-window.addEventListener('online', () => { siram().then(muat); });
+window.addEventListener('online', () => { siram._gagal = true; siram().then(muat); });
+window.addEventListener('offline', () => { nesty('Internet terputus. Tak apa, saya pegang dulu.', 'risau'); });
 
 /* ---------- teka area & bila (tanpa AI, serta-merta) ---------- */
 const KATA = {
@@ -107,13 +177,13 @@ function dengar(sasaran, butang, label) {
   if (!SR) { sasaran.focus(); toast('Guna butang mic pada keyboard phone'); return; }
   const r = new SR(); r.lang = 'ms-MY'; r.interimResults = true; r.continuous = false;
   const asal = sasaran.value ? sasaran.value.trimEnd() + (sasaran.id === 'esok' ? '\n' : ' ') : '';
-  r.onstart = () => { butang.classList.add('dengar'); if (label) label.textContent = 'Sedang dengar…'; };
+  r.onstart = () => { butang.classList.add('dengar'); if (label) label.textContent = 'Sedang dengar…'; nesty('Cakaplah, saya dengar…', 'dengar', 2500); };
   r.onresult = e => {
     let txt = ''; for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     sasaran.value = asal + txt; sasaran.dispatchEvent(new Event('input'));
   };
   r.onerror = () => toast('Tak dapat dengar. Cuba lagi atau taip.');
-  r.onend = () => { butang.classList.remove('dengar'); if (label) label.textContent = 'Tekan dan cakap'; };
+  r.onend = () => { butang.classList.remove('dengar'); if (label) label.textContent = 'Tekan dan cakap'; nestyDiam(); };
   r.start();
 }
 
@@ -124,12 +194,18 @@ function pergi(s) {
   document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', el.id === 's-' + s));
   document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-current', (b.dataset.s === s || (s === 'malam' && b.dataset.s === 'lepas')) ? 'page' : 'false'));
   lukis(); window.scrollTo(0, 0);
+  if (KATA_SKRIN[s] && Date.now() - (skrinDisapa[s] || 0) > 90000) {
+    skrinDisapa[s] = Date.now();
+    const sek = s === 'sekarang' && senaraiSekarang()[0];
+    setTimeout(() => nesty(KATA_SKRIN[s](), s === 'malam' ? 'tidur' : (sek && sek.lewat ? 'risau' : 'senyum')), 250);
+  }
 }
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => { cabang = null; pergi(b.dataset.s); }));
 
 function lukis() {
   document.body.classList.toggle('malam', waktuMalam());
   const tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.content = waktuMalam() ? '#1C1A16' : '#5B1BC4';
+  if (skrin !== 'sekarang' && $('lapis').style.display !== 'flex') $('nesty').classList.remove('di-dalam');
   if (skrin === 'lepas') lukisLepas();
   if (skrin === 'peta') lukisPeta();
   if (skrin === 'sekarang') lukisSekarang();
@@ -142,7 +218,11 @@ $('taip').addEventListener('click', () => $('teks').focus());
 $('teks').addEventListener('input', () => {
   const t = $('teks').value.trim();
   $('lepas-langkah2').hidden = !t;
-  if (t) { bilaPilih = ''; areaPilih = tekaArea(t); lukisLepas(); }
+  if (t) {
+    bilaPilih = ''; areaPilih = tekaArea(t); lukisLepas();
+    clearTimeout(lukisLepas._n);
+    lukisLepas._n = setTimeout(() => nesty('Saya rasa <b>' + tekaBila(t).toLowerCase() + '</b>' + (areaPilih ? ', cabang <b>' + esc(areaPilih) + '</b>' : '') + '. Tuan pilih.', 'fikir', 4200), 900);
+  } else nestyDiam();
 });
 
 function lukisLepas() {
@@ -159,7 +239,7 @@ function lukisLepas() {
   $('tukar-area').addEventListener('click', () => {
     const c = $('area-chips'); c.hidden = !c.hidden;
     c.innerHTML = AREAS.map(a => '<button type="button" class="chip' + (a === areaPilih ? ' on' : '') + '" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('');
-    c.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { areaPilih = b.dataset.a; c.hidden = true; lukisLepas(); }));
+    c.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { areaPilih = b.dataset.a; c.hidden = true; lukisLepas(); nesty('Okay, cabang <b>' + esc(areaPilih) + '</b>.', 'gembira', 2200); }));
   });
 }
 
@@ -171,7 +251,8 @@ function lepaskan(bila) {
   store.set('data', D);
   hantar({ action: 'addNote', teks, bila, area: areaPilih, masa }).then(muat);
   $('teks').value = ''; $('lepas-langkah2').hidden = true; $('area-chips').hidden = true;
-  toast(bila === 'Satu hari nanti' ? 'Nesty simpan untuk satu hari nanti. Kepala boleh lupakan dulu.' : 'Nesty simpan untuk ' + bila.toLowerCase() + '. Kepala boleh rehat.');
+  clearTimeout(lukisLepas._n);
+  nesty(bila === 'Satu hari nanti' ? 'Saya simpan untuk satu hari nanti. Kepala boleh lupakan dulu.' : 'Saya simpan untuk <b>' + bila.toLowerCase() + '</b>. Kepala boleh rehat.', 'gembira');
 }
 
 /* ---------- MALAM ---------- */
@@ -181,7 +262,11 @@ function lukisMalam() {
   const d = new Date();
   $('jam-malam').textContent = d.toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' });
   $('rasa').innerHTML = RASA.map(r => '<button type="button" class="chip' + (r === rasaPilih ? ' on' : '') + '" data-r="' + r + '" aria-pressed="' + (r === rasaPilih) + '">' + r + '</button>').join('');
-  $('rasa').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { rasaPilih = rasaPilih === b.dataset.r ? '' : b.dataset.r; lukisMalam(); }));
+  $('rasa').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    rasaPilih = rasaPilih === b.dataset.r ? '' : b.dataset.r; lukisMalam();
+    const balas = { Tenang: ['Bagus. Simpan rasa tenang tu.', 'senyum'], Penat: ['Penat tu tanda Tuan dah bagi banyak hari ni. Esok saya minta Claude ringankan.', 'tidur'], Risau: ['Tulis apa yang risau kat atas. Malam ni saya pegang, Tuan rehat.', 'risau'], Puas: ['Puas! Saya pun suka hari macam ni.', 'raikan'] };
+    if (rasaPilih) nesty(balas[rasaPilih][0], balas[rasaPilih][1]);
+  }));
 }
 $('simpan-malam').addEventListener('click', () => {
   const baris = $('esok').value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -194,7 +279,7 @@ $('simpan-malam').addEventListener('click', () => {
   }
   if (rasaPilih) hantar({ action: 'jurnal', rasa: rasaPilih, nota: '' });
   $('esok').value = ''; rasaPilih = ''; lukisMalam();
-  toast(baris.length ? baris.length + ' perkara disimpan untuk esok. Selamat berehat.' : 'Disimpan. Selamat berehat.', 3500);
+  nesty(baris.length ? '<b>' + baris.length + '</b> perkara saya simpan untuk esok. Selamat tidur, Tuan.' : 'Dah simpan. Selamat tidur, Tuan.', 'tidur', 4500);
   setTimeout(muat, 1500);
 });
 
@@ -229,7 +314,13 @@ function lukisPeta() {
   }
   html += '<div class="node pusat" style="left:' + cx + 'px;top:' + cy + 'px"><img src="img/glyph.png" alt="">Tuan</div>';
   el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + garis + '</svg>' + html;
-  el.querySelectorAll('button.node').forEach(b => b.addEventListener('click', () => { cabang = cabang === b.dataset.a ? null : b.dataset.a; lukisPeta(); }));
+  el.querySelectorAll('button.node').forEach(b => b.addEventListener('click', () => {
+    cabang = cabang === b.dataset.a ? null : b.dataset.a; lukisPeta();
+    if (cabang) {
+      const nn = D.notes.filter(n => aktif(n) && n.area === cabang).length, pp = D.projects.filter(x => x.area === cabang && x.status === 'Aktif').length;
+      nesty('Cabang <b>' + esc(cabang) + '</b>: ' + pp + ' projek aktif, ' + nn + ' fikiran terbuka.', 'fikir', 3500);
+    } else nestyDiam();
+  }));
   $('peta-sub').textContent = cabang ? 'Cabang ' + cabang + ' terbuka. Ketik lagi untuk tutup.' : 'Ketik satu cabang. Yang lain senyap.';
   lukisKadPeta();
 }
@@ -259,12 +350,12 @@ function lukisKadPeta() {
   $('peta-kad').querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => {
     const n = D.notes.find(x => x.id === b.dataset.id); if (n) n.area = b.dataset.a; store.set('data', D);
     if (!String(b.dataset.id).startsWith('baru-')) hantar({ action: 'setArea', id: b.dataset.id, area: b.dataset.a });
-    toast('Diletak di cabang ' + b.dataset.a); lukisPeta();
+    nesty('Dah letak di cabang <b>' + esc(b.dataset.a) + '</b>.', 'gembira'); lukisPeta();
   }));
   $('peta-kad').querySelectorAll('[data-ing]').forEach(b => b.addEventListener('click', () => {
     const tahap = store.get('ingat', {}); tahap[b.dataset.id] = (tahap[b.dataset.id] || 0) + 1; store.set('ingat', tahap);
-    if (b.dataset.ing === 'aktif') { hantar({ action: 'setBila', id: b.dataset.id, bila: 'Minggu ni' }); toast('Masuk senarai minggu ni.'); }
-    else toast('Akan diingatkan lagi kemudian.');
+    if (b.dataset.ing === 'aktif') { hantar({ action: 'setBila', id: b.dataset.id, bila: 'Minggu ni' }); nesty('Okay, idea ni masuk minggu ni. Saya ingatkan.', 'gembira'); }
+    else nesty('Baik, saya simpan. Nanti saya tanya lagi.', 'senyum');
     lukisKadPeta();
   }));
 }
@@ -292,6 +383,7 @@ function senaraiSekarang() {
 function lukisSekarang() {
   const s = senaraiSekarang();
   const isi = $('sek-isi');
+  $('nesty').classList.toggle('di-dalam', !s.length);
   if (!s.length) {
     $('sek-label').textContent = 'Sekarang';
     isi.innerHTML = '<img class="maskot" src="img/maskot.png" alt="Nesty"><p class="besar" style="text-align:center">Tiada apa yang mendesak.</p><p class="konteks" style="text-align:center">Nesty jaga yang lain. Kepala boleh rehat, atau lepaskan apa yang terlintas.</p>';
@@ -309,30 +401,35 @@ function lukisSekarang() {
   $('b-siap').addEventListener('click', () => {
     tandaSelesai(x.jenis[0] + ':' + x.id);
     if (x.jenis === 'nota') { const n = D.notes.find(q => q.id === x.id); if (n) n.status = 'Siap'; store.set('data', D); if (!String(x.id).startsWith('baru-')) hantar({ action: 'setStatus', id: x.id, status: 'Siap' }); }
-    rehat(x);
+    const baki = senaraiSekarang().length;
+    nesty(baki ? 'Yeay! Satu langkah bergerak.' : 'Semua siap untuk hari ini! Tuan hebat.', 'raikan', 2600);
+    setTimeout(() => rehat(x, baki), 700);
   });
   $('b-esok').addEventListener('click', () => {
     tandaSelesai(x.jenis[0] + ':' + x.id);
     if (x.jenis === 'nota' && !String(x.id).startsWith('baru-')) hantar({ action: 'setBila', id: x.id, bila: 'Esok' });
-    toast('Dipindah ke esok.'); lukisSekarang();
+    lukisSekarang(); nesty('Okay, saya bawa ke esok. Tak perlu fikir lagi malam ni.', 'senyum');
   });
   $('b-pecah').addEventListener('click', () => {
     const q = 'Pecahkan tugas ini kepada 3 langkah kecil yang boleh saya buat dalam 15 minit setiap satu: "' + x.teks + '"' + (x.konteks ? ' (' + x.konteks + ')' : '') + '. Jawab ringkas dalam Bahasa Melayu.';
-    window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank');
+    nesty('Saya minta Claude pecahkan jadi 3 langkah kecil…', 'fikir', 2500);
+    setTimeout(() => window.open('https://claude.ai/new?q=' + encodeURIComponent(q), '_blank'), 500);
   });
 }
 
-function rehat(x) {
+function rehat(x, baki) {
   const p = $('panel'), l = $('lapis');
-  p.innerHTML = '<img class="maskot kecil" src="img/maskot.png" alt="Nesty"><h2 style="margin:0;font-size:22px;text-align:center">Satu langkah bergerak.</h2><p class="sub" style="margin:0">' + esc(x.teks) + '</p>' +
+  $('nesty').classList.add('di-dalam');
+  const tutupPanel = (kata) => { l.style.display = 'none'; lukisSekarang(); if (!$('sek-isi').querySelector('.maskot')) $('nesty').classList.remove('di-dalam'); if (kata) nesty(kata, 'senyum'); };
+  p.innerHTML = '<img class="maskot kecil" src="img/maskot.png" alt="Nesty"><h2 style="margin:0;font-size:22px;text-align:center">' + (baki ? 'Satu langkah bergerak.' : 'Semua siap hari ini!') + '</h2><p class="sub" style="margin:0">' + esc(x.teks) + '</p>' +
     '<div class="row" style="margin-top:6px"><button type="button" class="btn utama" id="r-mula">Rehat 5 minit</button><button type="button" class="btn" id="r-terus">Teruskan</button></div>';
   l.style.display = 'flex';
-  $('r-terus').addEventListener('click', () => { l.style.display = 'none'; lukisSekarang(); });
+  $('r-terus').addEventListener('click', () => tutupPanel(baki ? 'Jom. Ini yang seterusnya.' : ''));
   $('r-mula').addEventListener('click', () => {
     let s = 300;
-    p.innerHTML = '<p class="sub" style="margin:0;text-align:center">Rehat. Jauhkan mata dari skrin.</p><div class="masa-rehat" id="r-masa">5:00</div><button type="button" class="btn" id="r-habis" style="align-self:center">Habis rehat</button>';
+    p.innerHTML = '<img class="maskot kecil" src="img/maskot.png" alt="Nesty" style="animation-duration:5s"><p class="sub" style="margin:0;text-align:center">Saya kira masa. Tuan jauhkan mata dari skrin.</p><div class="masa-rehat" id="r-masa">5:00</div><button type="button" class="btn" id="r-habis" style="align-self:center">Habis rehat</button>';
     const tick = setInterval(() => { s--; const el = $('r-masa'); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); if (s <= 0) { clearInterval(tick); tutup(); } }, 1000);
-    const tutup = () => { clearInterval(tick); l.style.display = 'none'; lukisSekarang(); };
+    const tutup = () => { clearInterval(tick); tutupPanel(baki ? 'Rehat siap. Segar? Jom satu lagi.' : 'Rehat siap. Hari ni dah cukup baik.'); };
     $('r-habis').addEventListener('click', tutup);
   });
 }
@@ -343,9 +440,41 @@ if (!KUNCI) {
   document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', el.id === 's-kunci'));
 } else {
   $('nav').hidden = false;
+  $('nesty').hidden = false;
   const h = jam();
+  skrinDisapa = { sekarang: Date.now(), lepas: Date.now(), malam: Date.now() }; // sapaan pembukaan ganti kata skrin
   pergi(h >= 5 && h < 12 ? 'sekarang' : 'lepas');
+  setTimeout(() => nesty(sapaan() + ' ' + ringkasanNesty(), waktuMalam() ? 'tidur' : 'gembira', 6000), 500);
   siram().then(muat);
-  setInterval(() => { if (document.visibilityState === 'visible') lukis(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { siram().then(muat); } });
+
+  // Ketik Nesty: ringkasan semasa
+  $('nesty-btn').addEventListener('click', () => {
+    const s = senaraiSekarang();
+    nesty(ringkasanNesty() + (s.length && skrin !== 'sekarang' ? ' Nak saya tunjuk yang pertama? Ketik <b>Sekarang</b>.' : ''), s.some(x => x.lewat) ? 'risau' : 'fikir', 6000);
+  });
+
+  // Nesty perasan: tukar siang/malam, terlalu lama pada satu tugas, data baru
+  let malamTadi = waktuMalam(), aksiTerakhir = Date.now(), dahTegur = '';
+  ['click', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => (aksiTerakhir = Date.now()), { passive: true }));
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    lukis();
+    if (waktuMalam() !== malamTadi) {
+      malamTadi = waktuMalam();
+      if (malamTadi) { nesty('Dah pukul 9. Masa tutup kepala. Nak tulis apa perlu esok?', 'tidur', 6000); if (skrin === 'lepas') pergi('lepas'); }
+      else nesty(sapaan() + ' Hari baru. ' + ringkasanNesty(), 'gembira', 6000);
+    }
+    const x = skrin === 'sekarang' && senaraiSekarang()[0];
+    if (x && Date.now() - aksiTerakhir > 25 * 60000 && dahTegur !== x.teks) {
+      dahTegur = x.teks;
+      nesty('Masih dengan yang ini? Kalau rasa berat, ketik <b>Pecahkan kecil</b>.', 'fikir', 7000);
+    }
+  }, 60000);
+  setInterval(() => { if (document.visibilityState === 'visible') muat(); }, 5 * 60000); // semak perubahan dari Claude
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      siram().then(muat);
+      if (Date.now() - nestyTerakhir.masa > 30 * 60000) nesty(sapaan() + ' Saya ada di sini. ' + ringkasanNesty(), waktuMalam() ? 'tidur' : 'senyum', 5000);
+    }
+  });
 }

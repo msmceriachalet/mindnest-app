@@ -1,6 +1,6 @@
 /* MindNest service worker: simpan kulit app supaya boleh dibuka tanpa internet */
-const CACHE = 'mindnest-v4';
-const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'img/maskot.png', 'img/glyph.png'];
+const CACHE = 'mindnest-v5';
+const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'img/maskot.png', 'img/glyph.png', 'img/nesty.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
